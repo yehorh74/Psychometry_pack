@@ -32,24 +32,45 @@ class FactorAnalysis:
 
     def fit(self, df):
         """
-        Dopasowanie modelu EFA
+        Dopasowanie modelu EFA.
+        Jeśli n_factors=None → obliczane są tylko eigenvalues i testy (scree plot).
+        Jeśli n_factors podano → wykonywana jest pełna analiza czynnikowa.
         """
+
+        # --- WALIDACJA ---
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("fit() oczekuje pandas DataFrame")
+
         df_clean = df.dropna()
 
-        #Testy adekwatności
+        if df_clean.shape[0] < 2:
+            raise ValueError("Za mało obserwacji po usunięciu braków danych")
+
+        if df_clean.shape[1] < 2:
+            raise ValueError("Za mało zmiennych do analizy czynnikowej")
+
+        # --- TESTY ADEKWATNOŚCI ---
         chi2, p = calculate_bartlett_sphericity(df_clean)
         _, kmo_model = calculate_kmo(df_clean)
 
         self.kmo = kmo_model
         self.bartlett = (chi2, p)
 
-        #Eigenvalues
+        # --- EIGENVALUES (ZAWSZE) ---
         fa_ev = FactorAnalyzer(rotation=None)
         fa_ev.fit(df_clean)
         ev, _ = fa_ev.get_eigenvalues()
         self.eigenvalues = ev
 
-        #Analiza czynnikowa
+        if self.n_factors is None:
+            self.loadings = None
+            self.factor_scores = None
+            return self
+
+        # --- PEŁNA ANALIZA CZYNNIKOWA ---
+        if not isinstance(self.n_factors, int) or self.n_factors < 1:
+            raise ValueError("n_factors musi być liczbą całkowitą ≥ 1")
+
         fa = FactorAnalyzer(
             n_factors=self.n_factors,
             rotation=self.rotation,
@@ -57,17 +78,19 @@ class FactorAnalysis:
         )
         fa.fit(df_clean)
 
-        #Ładunki czynnikowe
+        # --- ŁADUNKI CZYNNIKOWE ---
         loadings = pd.DataFrame(
             fa.loadings_,
             index=df_clean.columns,
             columns=[f"Factor{i+1}" for i in range(fa.loadings_.shape[1])]
         )
 
-        loadings = loadings.where(loadings.abs() >= self.loading_cutoff)
+        if self.loading_cutoff is not None:
+            loadings = loadings.where(loadings.abs() >= self.loading_cutoff)
+
         self.loadings = loadings
 
-        #Wartości czynnikowe
+        # --- WARTOŚCI CZYNNIKOWE ---
         scores = fa.transform(df_clean)
         self.factor_scores = pd.DataFrame(
             scores,
@@ -75,7 +98,27 @@ class FactorAnalysis:
         )
 
         return self
+    
+    def add_factor_scores(self, df):
+        """
+        Zwraca DataFrame z dołączonymi wartościami czynnikowymi.
+        DataFrame musi mieć te same wiersze co oryginalny df użyty w fit().
+        """
+        if self.factor_scores is None:
+            raise RuntimeError("Najpierw wykonaj fit() z n_factors")
 
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("Oczekiwano pandas DataFrame")
+
+        # Zakładamy, że df i self.factor_scores mają takie same indeksy i długości
+        if len(df) != len(self.factor_scores):
+            raise ValueError("Niezgodna liczba obserwacji między df a factor_scores")
+
+        df = df.reset_index(drop=True)
+        factor_scores = self.factor_scores.reset_index(drop=True)
+
+        return pd.concat([df, factor_scores], axis=1)
+    
     def scree_plot(self):
         """
         Wykres osypiska
@@ -90,21 +133,42 @@ class FactorAnalysis:
         plt.grid(True)
         plt.show()
 
-    def save_results(self, prefix="efa"):
+    def save_results(self, prefix="efa", how="csv"):
         """
-        Zapis wyników do plików CSV
+        Zapis wyników do plików CSV lub Excel.
+
+        Parametry:
+        - prefix (str): prefiks nazwy pliku
+        - how (str): format zapisu, "csv" lub "excel" (domyślnie "csv")
         """
-        pd.DataFrame(
-            {"eigenvalues": self.eigenvalues},
-            index=range(1, len(self.eigenvalues) + 1)
-        ).to_csv(f"{prefix}_eigenvalues.csv")
+        if how == "excel":
+            with pd.ExcelWriter(f"{prefix}_results.xlsx") as writer:
+                pd.DataFrame(
+                    {"eigenvalues": self.eigenvalues},
+                    index=range(1, len(self.eigenvalues) + 1)
+                    ).to_excel(writer, sheet_name="Eigenvalues")
 
-        self.loadings.to_csv(f"{prefix}_loadings.csv")
+                self.loadings.to_excel(writer, sheet_name="Loadings")
 
-        self.factor_scores.to_csv(f"{prefix}_factor_scores.csv", index=False)
+                self.factor_scores.to_excel(writer, sheet_name="Factor_Scores", index=False)
 
-        pd.DataFrame({
-            "KMO": [self.kmo],
-            "Chi-square": [self.bartlett[0]],
-            "p-value": [self.bartlett[1]]
-        }).to_csv(f"{prefix}_tests.csv", index=False)
+                pd.DataFrame({
+                    "KMO": [self.kmo],
+                    "Chi-square": [self.bartlett[0]],
+                    "p-value": [self.bartlett[1]]
+                    }).to_excel(writer, sheet_name="Tests", index=False)
+        else:
+            pd.DataFrame(
+                {"eigenvalues": self.eigenvalues},
+                index=range(1, len(self.eigenvalues) + 1)
+                ).to_csv(f"{prefix}_eigenvalues.csv")
+
+            self.loadings.to_csv(f"{prefix}_loadings.csv")
+
+            self.factor_scores.to_csv(f"{prefix}_factor_scores.csv", index=False)
+
+            pd.DataFrame({
+                 "KMO": [self.kmo],
+                 "Chi-square": [self.bartlett[0]],
+                 "p-value": [self.bartlett[1]]
+                 }).to_csv(f"{prefix}_tests.csv", index=False)

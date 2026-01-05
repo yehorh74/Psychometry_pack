@@ -18,10 +18,10 @@ def _check_dataframe(self, min_rows=2, min_cols=2):
 
     return self
 
-def _dropna_rows(self):
-    """
-    Usuwa wiersze z brakami danych
-    """
+def _dropna_rows(self, inplace=False):
+    if inplace:
+        self.dropna(axis=0, inplace=True)
+        return self
     return self.dropna(axis=0)
 
 def _sum_items(

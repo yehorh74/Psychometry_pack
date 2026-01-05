@@ -29,25 +29,28 @@ class Correlate:
         return df_rho
 
     @staticmethod
-    def r_pearson(df, factor, wyniki_test):
+    def r_pearson(df, factors, wyniki_test):
         wyniki = {}
 
-        for kol in wyniki_test:
-            data = df[[kol, factor]].dropna()
+        if isinstance(factors, str):
+            factors = [factors]
 
-            if len(data) < 2:
-                wyniki[kol] = {"r": np.nan, "p_value": np.nan, "N": len(data)}
-                continue
+        for factor in factors:
+            for kol in wyniki_test:
+                data = df[[kol, factor]].dropna()
 
-            # Obliczamy współczynnik korelacji Pearsona i wartość p
-            r, p_value = pearsonr(data[factor], data[kol])
+                if len(data) < 2:
+                    wyniki[(factor, kol)] = {"r": np.nan, "p_value": np.nan, "N": len(data)}
+                    continue
 
-            wyniki[kol] = {
-                "r": r,
-                "p_value": p_value,
-                "N": len(data)
-            }
+                r, p_value = pearsonr(data[factor], data[kol])
+
+                wyniki[(factor, kol)] = {
+                    "r": r,
+                    "p_value": p_value,
+                    "N": len(data)
+                    }
 
         df_pearson = pd.DataFrame.from_dict(wyniki, orient="index")
-
+        df_pearson.index = pd.MultiIndex.from_tuples(df_pearson.index, names=["Factor", "Test"])
         return df_pearson
