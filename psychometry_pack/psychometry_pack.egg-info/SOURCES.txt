@@ -1,6 +1,0 @@
-setup.py
-psychometry_pack.egg-info/PKG-INFO
-psychometry_pack.egg-info/SOURCES.txt
-psychometry_pack.egg-info/dependency_links.txt
-psychometry_pack.egg-info/requires.txt
-psychometry_pack.egg-info/top_level.txt
