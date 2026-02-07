@@ -9,5 +9,4 @@ Klasyczna Teoria Testów (CTT):
   Korelacja r-Pearson i rho-Spearmana dla analizy trafności.
 Oraz opcje rekodowania i pandas-friendly metody do obliczania wyników testów i walidacji danych.
 
-Podziękowania
 Szczególne podziękowania należą się dr. Adamowi Sobolewskiemu za jego nieoceniony wkład merytoryczny, fachowe wskazówki i wsparcie teoretyczne w rozwoju tej biblioteki.
