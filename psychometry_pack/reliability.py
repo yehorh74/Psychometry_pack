@@ -3,12 +3,25 @@ import numpy as np
 
 class Alfa:
     
-    def __init__(self, statistics, sort=None):
+    def __init__(self, statistics=None, sort=None):
         self.statistics = statistics
         self.sort = sort
         self.results = None
 
     def fit(self, df_itemy):
+
+        # --- WALIDACJA ---
+        if not isinstance(df_itemy, pd.DataFrame):
+            raise TypeError("fit() oczekuje pandas DataFrame")
+
+        df_clean = df_itemy.dropna()
+
+        if df_clean.shape[0] < 2:
+            raise ValueError("Za mało obserwacji po usunięciu braków danych")
+
+        if df_clean.shape[1] < 2:
+            raise ValueError("Za mało zmiennych do analizy rzetelności")
+            
         # Usuwamy wiersze z brakującymi wartościami
         df = df_itemy.dropna(axis=0)
 
@@ -98,7 +111,10 @@ class Alfa:
             df_mean.columns = ['Mean']
             return df_mean
 
-        if self.statistics == "item_dropped":
+        if self.statistics is None:
+            return self
+        
+        elif self.statistics == "item_dropped":
             # Obliczamy wskaźniki po usunięciu pojedynczego itemu
             wynik_alfa_del = _alfa_cronbacha_itemy(df)
             wynik_r = _r(df)
@@ -138,18 +154,18 @@ class Alfa:
         self.results = tabela
         return tabela
 
-    @staticmethod
-    def alfa_cronbacha(df_itemy):
+    #@staticmethod
+    def alfa_cronbacha(self, df_itemy):
         wyniki = {}
 
         # Usuwamy wiersze z brakującymi wartościami
-        df = df_itemy.dropna(axis=0)
+        #df = df_itemy.dropna(axis=0)
 
-        if df.shape[0] < 2:
-            raise ValueError("Za mało obserwacji po usunięciu NaN")
+        #if df.shape[0] < 2:
+            #raise ValueError("Za mało obserwacji po usunięciu NaN")
 
-        if df.shape[1] < 2:
-            raise ValueError("Alfa Cronbacha wymaga co najmniej 2 itemów")
+        #if df.shape[1] < 2:
+            #raise ValueError("Alfa Cronbacha wymaga co najmniej 2 itemów")
 
         def wariancja(df_itemy):
             # Obliczamy wariancję kolumn
